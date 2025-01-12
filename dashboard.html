@@ -1,0 +1,1395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="styles1.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <header>
+      <h1>BenG Solutions</h1>
+      <h2>Soldier Tracking Dashboard</h2>
+    </header>
+
+    <nav class="button-nav">
+      <button onclick="location.href='soldierhealthdata.html'">Soldier's Health Data</button>
+      <button onclick="location.href='location.html'">Location Tracking</button>
+      <button onclick="location.href='about.html'">About</button>
+    </nav>
+
+    <section class="main-content">
+      <!-- Soldier Data -->
+      <div class="soldier-data">
+        <h2>Soldier Data</h2>
+
+        <!-- Search Bar -->
+        <input 
+          type="text" 
+          id="search-bar" 
+          placeholder="Search by Name or ID..." 
+          oninput="filterSoldierData()"
+        />
+
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Heart Rate</th>
+              <th>Body Temperature</th>
+              <th>Oxygen Level</th>
+              <th>Blood Pressure</th>
+              <th>Location</th>
+              <th>Timestamp</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="soldier-data-body">
+            <!-- Soldier data will be dynamically loaded here -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Alerts -->
+      <div class="alerts">
+        <h2>Alerts</h2>
+        <ul id="alerts-list">
+          <!-- Alerts will be dynamically loaded here -->
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Fetch soldier data
+    async function fetchSoldierData() {
+      const apiUrl = 'https://nbfjl9bui6.execute-api.us-east-1.amazonaws.com/a/dev';
+      const soldierDataBody = document.getElementById('soldier-data-body');
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch soldier data');
+        }
+
+        const data = await response.json();
+        const parsedBody = JSON.parse(data.body);
+        const soldiers = parsedBody.data || [];
+
+        // Store soldier data for search filtering
+        window.soldierData = soldiers;
+
+        // Populate soldier data table
+        displaySoldierData(soldiers);
+      } catch (error) {
+        console.error('Error fetching soldier data:', error);
+        soldierDataBody.innerHTML = '<tr><td colspan="9">Error loading soldier data. Please try again later.</td></tr>';
+      }
+    }
+
+    // Display soldier data in the table
+    function displaySoldierData(soldiers) {
+      const soldierDataBody = document.getElementById('soldier-data-body');
+      soldierDataBody.innerHTML = '';
+
+      if (soldiers.length === 0) {
+        soldierDataBody.innerHTML = '<tr><td colspan="9">No soldier data available.</td></tr>';
+        return;
+      }
+
+      soldiers.forEach((soldier) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${soldier.ID}</td>
+          <td>${soldier.Name}</td>
+          <td>${soldier.HeartRate}</td>
+          <td>${soldier.BodyTemperature}</td>
+          <td>${soldier.OxygenLevel}</td>
+          <td>${soldier.BloodPressure}</td>
+          <td>${soldier.Location}</td>
+          <td>${soldier.Timestamp || 'N/A'}</td>
+          <td><button class="clear-soldier-btn">Clear</button></td>
+        `;
+        soldierDataBody.appendChild(row);
+      });
+    }
+
+    // Search and filter soldier data
+    function filterSoldierData() {
+      const searchTerm = document.getElementById('search-bar').value.toLowerCase();
+      const filteredData = window.soldierData.filter((soldier) => {
+        return (
+          soldier.ID.toLowerCase().includes(searchTerm) ||
+          soldier.Name.toLowerCase().includes(searchTerm)
+        );
+      });
+      displaySoldierData(filteredData);
+    }
+
+    // Handle Clear button clicks for soldiers
+    document.addEventListener('click', (event) => {
+      if (event.target.classList.contains('clear-soldier-btn')) {
+        const clickedRow = event.target.closest('tr'); // Find the row of the clicked button
+        const soldierDataBody = document.getElementById('soldier-data-body');
+        const allRows = Array.from(soldierDataBody.children); // Get all rows as an array
+
+        // Find the index of the clicked row
+        const clickedRowIndex = allRows.indexOf(clickedRow);
+
+        // Remove all rows above the clicked row
+        for (let i = 0; i < clickedRowIndex; i++) {
+          soldierDataBody.removeChild(allRows[i]);
+        }
+        console.log(`Cleared all rows above row index: ${clickedRowIndex}`);
+      }
+    });
+
+    // Fetch alerts
+    async function fetchAlerts() {
+      const apiUrl = 'https://7r84vcqw11.execute-api.us-east-1.amazonaws.com/s/abnormalHealtj';
+      const alertsList = document.getElementById('alerts-list');
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch alerts');
+        }
+
+        const data = await response.json();
+        const body = JSON.parse(data.body);
+        const alerts = body.alerts || [];
+        alertsList.innerHTML = '';
+
+        if (alerts.length === 0) {
+          alertsList.innerHTML = '<li>No alerts available.</li>';
+        } else {
+          alerts.forEach((alert) => {
+            const listItem = document.createElement('li');
+            listItem.setAttribute('data-alert-id', alert.ID); // Attach alert ID for reference
+            listItem.innerHTML = `
+              <strong>Message:</strong> ${alert.Message}<br>
+              <strong>ID:</strong> ${alert.ID}<br>
+              <strong>Name:</strong> ${alert.Name}<br>
+              <strong>Issues:</strong> ${alert.Issues.join(', ')}<br>
+              <strong>Location:</strong> ${alert.Location}<br>
+              <strong>Timestamp:</strong> ${alert.Timestamp}<br>
+              <button class="clear-alert-btn">Clear</button>
+            `;
+            alertsList.appendChild(listItem);
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching alerts:', error);
+        alertsList.innerHTML = '<li>Error loading alerts. Please try again later.</li>';
+      }
+    }
+
+    // Clear an alert from the dashboard
+    document.addEventListener('click', (event) => {
+      if (event.target.classList.contains('clear-alert-btn')) {
+        const alertItem = event.target.closest('li'); // Find the alert item
+        alertItem.remove(); // Remove the alert from the list
+        console.log(`Cleared alert with ID: ${alertItem.getAttribute('data-alert-id')}`);
+      }
+    });
+
+    // Call fetchSoldierData and fetchAlerts on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchSoldierData();
+      fetchAlerts();
+    });
+  </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="styles1.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <header>
+      <h1>BenG Solutions</h1>
+      <h2>Soldier Tracking Dashboard</h2>
+    </header>
+
+    <nav class="button-nav">
+      <button onclick="location.href='addsoldier.html'">Add Soldier</button>
+      <button onclick="location.href='soldierhealthdata.html'">Soldier's Health Data</button>
+      <button onclick="location.href='location.html'">Location Tracking</button>
+      <button onclick="location.href='about.html'">About</button>
+    </nav>
+
+    <section class="main-content">
+       Soldier Data 
+      <div class="soldier-data">
+        <h2>Soldier Data</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Heart Rate</th>
+              <th>Body 
+                Temperature</th>
+              <th>Oxygen Level</th>
+              <th>Blood Pressure</th>
+              <th>Location</th>
+            </tr>
+          </thead>
+          <tbody id="soldier-data-body">
+             Soldier data will be dynamically loaded here 
+          </tbody>
+        </table>
+      </div>
+
+       Alerts 
+      <div class="alerts">
+        <h2>Alerts</h2>
+        <ul id="alerts-list">
+           Alerts will be dynamically loaded here
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Fetch soldier data
+    async function fetchSoldierData() {
+      const apiUrl = 'https://nbfjl9bui6.execute-api.us-east-1.amazonaws.com/a/dev';
+      const soldierDataBody = document.getElementById('soldier-data-body');
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch soldier data');
+        }
+
+        const data = await response.json();
+        const parsedBody = JSON.parse(data.body);
+        const soldiers = parsedBody.data || [];
+
+        // Clear existing soldier data
+        soldierDataBody.innerHTML = '';
+
+        // Populate soldier data table
+        if (soldiers.length === 0) {
+          soldierDataBody.innerHTML = '<tr><td colspan="7">No soldier data available.</td></tr>';
+        } else {
+          soldiers.forEach((soldier) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${soldier.ID}</td>
+              <td>${soldier.Name}</td>
+              <td>${soldier.HeartRate}</td>
+              <td>${soldier.BodyTemperature}</td>
+              <td>${soldier.OxygenLevel}</td>
+              <td>${soldier.BloodPressure}</td>
+              <td>${soldier.Location}</td>
+            `;
+            soldierDataBody.appendChild(row);
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching soldier data:', error);
+        soldierDataBody.innerHTML = '<tr><td colspan="7">Error loading soldier data. Please try again later.</td></tr>';
+      }
+    }
+
+    // Fetch alerts
+    async function fetchAlerts() {
+      const apiUrl = 'https://7r84vcqw11.execute-api.us-east-1.amazonaws.com/s/abnormalHealtj';
+      const alertsList = document.getElementById('alerts-list');
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch alerts');
+        }
+
+        const data = await response.json();
+        const body = JSON.parse(data.body);
+        const alerts = body.alerts || [];
+        alertsList.innerHTML = '';
+
+        if (alerts.length === 0) {
+          alertsList.innerHTML = '<li>No alerts available.</li>';
+        } else {
+          alerts.forEach((alert) => {
+            const listItem = document.createElement('li');
+            listItem.setAttribute('data-alert-id', alert.ID); // Attach alert ID for reference
+            listItem.innerHTML = `
+              <strong>Message:</strong> ${alert.Message}<br>
+              <strong>ID:</strong> ${alert.ID}<br>
+              <strong>Name:</strong> ${alert.Name}<br>
+              <strong>Issues:</strong> ${alert.Issues.join(', ')}<br>
+              <strong>Location:</strong> ${alert.Location}<br>
+              <strong>Timestamp:</strong> ${alert.Timestamp}<br>
+              <button class="clear-alert-btn">Clear</button>
+            `;
+            alertsList.appendChild(listItem);
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching alerts:', error);
+        alertsList.innerHTML = '<li>Error loading alerts. Please try again later.</li>';
+      }
+    }
+
+    // Clear an alert from the dashboard
+    document.addEventListener('click', (event) => {
+      if (event.target.classList.contains('clear-alert-btn')) {
+        const alertItem = event.target.closest('li'); // Find the alert item
+        alertItem.remove(); // Remove the alert from the list
+        console.log(`Cleared alert with ID: ${alertItem.getAttribute('data-alert-id')}`);
+      }
+    });
+
+    // Call fetchSoldierData and fetchAlerts on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchSoldierData();
+      fetchAlerts();
+    });
+  </script>
+</body>
+</html>
+
+ -->
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="styles1.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <header>
+      <h1>BenG Solutions</h1>
+      <h2>Soldier Tracking Dashboard</h2>
+    </header>
+
+    <nav class="button-nav">
+      <button onclick="location.href='addsoldier.html'">Add Soldier</button>
+      <button onclick="location.href='soldierhealthdata.html'">Soldier's Health Data</button>
+      <button onclick="location.href='location.html'">Location Tracking</button>
+      <button onclick="location.href='about.html'">About</button>
+    </nav>
+
+    <section class="main-content">
+       Soldier Data 
+      <div class="soldier-data">
+        <h2>Soldier Data</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>HeartRate</th>
+              <th>BodyTemperature</th>
+              <th>OxygenLevel</th>
+              <th>BloodPressure</th>
+              <th>Location</th>
+            </tr>
+          </thead>
+          <tbody id="soldier-data-body">
+             Soldier data will be dynamically loaded here 
+          </tbody>
+        </table>
+      </div>
+
+       Alerts 
+      <div class="alerts">
+        <h2>Alerts</h2>
+        <ul id="alerts-list">
+           Alerts will be dynamically loaded here 
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Fetch soldier data from the new API
+    async function fetchSoldierData() {
+      const apiUrl = 'https://nbfjl9bui6.execute-api.us-east-1.amazonaws.com/a/dev';
+      const soldierDataBody = document.getElementById('soldier-data-body');
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch soldier data');
+        }
+
+        const data = await response.json(); // Parse the main response
+        console.log('API Response:', data); // Debug: Log the entire API response
+        const parsedBody = JSON.parse(data.body); // Parse the stringified 'body' field
+        const soldiers = parsedBody.data || []; // Safely access the 'data' array
+
+        // Clear existing soldier data
+        soldierDataBody.innerHTML = '';
+
+        // Populate the soldier data table
+        if (soldiers.length === 0) {
+          soldierDataBody.innerHTML = '<tr><td colspan="7">No soldier data available.</td></tr>';
+        } else {
+          soldiers.forEach((soldier) => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${soldier.ID}</td>
+              <td>${soldier.Name}</td>
+              <td>${soldier.HeartRate}</td>
+              <td>${soldier.BodyTemperature}</td>
+              <td>${soldier.OxygenLevel}</td>
+              <td>${soldier.BloodPressure}</td>
+              <td>${soldier.Location}</td>
+            `;
+            soldierDataBody.appendChild(row);
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching soldier data:', error);
+        soldierDataBody.innerHTML = '<tr><td colspan="7">Error loading soldier data. Please try again later.</td></tr>';
+      }
+    }
+
+    // Fetch alerts
+    async function fetchAlerts() {
+      const apiUrl = 'https://7r84vcqw11.execute-api.us-east-1.amazonaws.com/s/abnormalHealtj';
+      const alertsList = document.getElementById('alerts-list');
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch alerts');
+        }
+
+        const data = await response.json(); // Parse the main response
+        const body = JSON.parse(data.body); // Parse the stringified 'body' field
+        const alerts = body.alerts || []; // Safely access the 'alerts' array
+        alertsList.innerHTML = ''; // Clear existing alerts
+
+        if (alerts.length === 0) {
+          alertsList.innerHTML = '<li>No alerts available.</li>';
+        }
+
+        alerts.forEach((alert) => {
+          const listItem = document.createElement('li');
+          listItem.innerHTML = `
+            <strong>Message:</strong> ${alert.Message}<br>
+            <strong>ID:</strong> ${alert.ID}<br>
+            <strong>Name:</strong> ${alert.Name}<br>
+            <strong>Issues:</strong> ${alert.Issues.join(', ')}<br>
+            <strong>Location:</strong> ${alert.Location}<br>
+            <strong>Timestamp:</strong> ${alert.Timestamp}<br>
+            <button onclick="clearAlert('${alert.ID}')">Clear Alert</button>
+          `;
+          alertsList.appendChild(listItem);
+        });
+      } catch (error) {
+        console.error('Error fetching alerts:', error);
+        alertsList.innerHTML = '<li>Error loading alerts. Please try again later.</li>';
+      }
+    }
+
+    // Clear a single alert
+    async function clearAlert(alertId) {
+      const apiUrl = `https://7r84vcqw11.execute-api.us-east-1.amazonaws.com/s/clearAlert`; // Add your delete alert API URL
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ID: alertId }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to clear alert');
+        }
+
+        // Remove the cleared alert from the list
+        fetchAlerts();
+        fetchSoldierData();
+      } catch (error) {
+        console.error('Error clearing alert:', error);
+      }
+    }
+
+    // Call the fetchSoldierData and fetchAlerts functions on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchSoldierData();
+      fetchAlerts();
+    });
+  </script>
+</body>
+</html> -->
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="styles1.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <header>
+      <h1>BenG Solutions</h1>
+      <h2>Soldier Tracking Dashboard</h2>
+    </header>
+
+    <nav class="button-nav">
+      <button onclick="location.href='addsoldier.html'">Add Soldier</button>
+      <button onclick="location.href='soldierhealthdata.html'">Soldier's Health Data</button>
+      <button onclick="location.href='location.html'">Location Tracking</button>
+      <button onclick="location.href='about.html'">About</button>
+    </nav>
+
+    <section class="main-content">
+       Soldier Data 
+      <div class="soldier-data">
+        <h2>Soldier Data</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>HeartRate</th>
+              <th>BodyTemperature</th>
+              <th>OxygenLevel</th>
+              <th>BloodPressure</th>
+              <th>Location</th>
+            </tr>
+          </thead>
+          <tbody id="soldier-data-body">
+             Soldier data will be dynamically loaded here 
+          </tbody>
+        </table>
+      </div>
+
+       Alerts 
+      <div class="alerts">
+        <h2>Alerts</h2>
+        <ul id="alerts-list">
+           Alerts will be dynamically loaded here 
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Fetch soldier data from the new API
+    async function fetchSoldierData() {
+  const apiUrl = 'https://nbfjl9bui6.execute-api.us-east-1.amazonaws.com/a/dev';
+  const soldierDataBody = document.getElementById('soldier-data-body');
+
+  try {
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch soldier data');
+    }
+
+    const data = await response.json(); // Parse the main response
+    console.log('API Response:', data); // Debug: Log the entire API response
+    const parsedBody = JSON.parse(data.body); // Parse the stringified 'body' field
+    const soldiers = parsedBody.data || []; // Safely access the 'data' array
+
+    // Clear existing soldier data
+    soldierDataBody.innerHTML = '';
+
+    // Populate the soldier data table
+    if (soldiers.length === 0) {
+      soldierDataBody.innerHTML = '<tr><td colspan="5">No soldier data available.</td></tr>';
+    } else {
+      soldiers.forEach((soldier) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${soldier.ID}</td>
+          <td>${soldier.Name}</td>
+          <td>${soldier.HeartRate}</td>
+          <td>${soldier.BodyTemperature}</td>
+          <td>${soldier.Location}</td>
+        `;
+        soldierDataBody.appendChild(row);
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching soldier data:', error);
+    soldierDataBody.innerHTML = '<tr><td colspan="5">Error loading soldier data. Please try again later.</td></tr>';
+  }
+}
+
+
+    // Fetch alerts (existing code remains unchanged)
+    async function fetchAlerts() {
+      const apiUrl = 'https://7r84vcqw11.execute-api.us-east-1.amazonaws.com/s/abnormalHealtj'; // Existing Alerts API URL
+      const alertsList = document.getElementById('alerts-list');
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch alerts');
+        }
+
+        const data = await response.json(); // Parse the main response
+        const body = JSON.parse(data.body); // Parse the stringified 'body' field
+        const alerts = body.alerts || []; // Safely access the 'alerts' array
+        alertsList.innerHTML = ''; // Clear existing alerts
+
+        if (alerts.length === 0) {
+          alertsList.innerHTML = '<li>No alerts available.</li>';
+        }
+
+        alerts.forEach((alert) => {
+          const listItem = document.createElement('li');
+          listItem.innerHTML = `
+            <strong>Message:</strong> ${alert.Message}<br>
+             <strong>ID:</strong> ${alert.ID}<br>
+            <strong>Name:</strong> ${alert.Name}<br>
+            <strong>Issues:</strong> ${alert.Issues.join(', ')}<br>
+            <strong>Location:</strong> ${alert.Location}<br>
+            <strong>Timestamp:</strong> ${alert.Timestamp}
+          `;
+          alertsList.appendChild(listItem);
+        });
+      } catch (error) {
+        console.error('Error fetching alerts:', error);
+        alertsList.innerHTML = '<li>Error loading alerts. Please try again later.</li>';
+      }
+    }
+
+    // Call the fetchSoldierData and fetchAlerts functions on page load
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchSoldierData();
+      fetchAlerts();
+    });
+  </script>
+</body>
+</html> -->
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="styles1.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <header>
+      <h1>BenG Solutions</h1>
+      <h2>Soldier Tracking Dashboard</h2>
+    </header>
+
+    <nav class="button-nav">
+      <button onclick="location.href='addsoldier.html'">Add Soldier</button>
+      <button onclick="location.href='soldierhealthdata.html'">Soldier's Health Data</button>
+      <button onclick="location.href='location.html'">Location Tracking</button>
+      <button onclick="location.href='about.html'">About</button>
+    </nav>
+
+    <section class="main-content">
+       Soldier Data 
+      <div class="soldier-data">
+        <h2>Soldier Data</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>HeartRate</th>
+              <th>BodyTemperature</th>
+              <th>Location</th>
+            </tr>
+          </thead>
+          <tbody id="soldier-data-body">
+             Soldier data will be dynamically loaded here 
+          </tbody>
+        </table>
+      </div>
+
+       Alerts 
+      <div class="alerts">
+        <h2>Alerts</h2>
+        <ul id="alerts-list">
+           Alerts will be dynamically loaded here
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Fetch soldier data and alerts from AWS API
+    async function fetchData() {
+      const apiUrl = 'https://7r84vcqw11.execute-api.us-east-1.amazonaws.com/s/abnormalHealtj'; // AWS API URL
+
+      const soldierDataBody = document.getElementById('soldier-data-body');
+      const alertsList = document.getElementById('alerts-list');
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch data');
+        }
+
+        const data = await response.json(); // Parse the main response
+        const body = JSON.parse(data.body); // Parse the stringified 'body' field
+        const alerts = body.alerts || []; // Safely access the 'alerts' array
+
+        // Clear existing soldier data and alerts
+        soldierDataBody.innerHTML = '';
+        alertsList.innerHTML = '';
+
+        // If no alerts available
+        if (alerts.length === 0) {
+          alertsList.innerHTML = '<li>No alerts available.</li>';
+        }
+
+        // Populate the soldier data table
+        alerts.forEach((alert) => {
+          // Soldier Data Table Row
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${alert.ID}</td>
+            <td>${alert.Name}</td>
+            <td>${alert.Issues.join(', ')}</td>  Join issues as a comma-separated string 
+            <td>${alert.Issues.join(', ')}</td>  Display issues as body temperature or heart rate issues 
+            <td>${alert.Location}</td>
+          `;
+          soldierDataBody.appendChild(row);
+
+          // Alerts Section
+          const listItem = document.createElement('li');
+          listItem.innerHTML = `
+            <strong>Message:</strong> ${alert.Message}<br>
+            <strong>ID:</strong> ${alert.ID}<br>
+            <strong>Name:</strong> ${alert.Name}<br>
+            <strong>Issues:</strong> ${alert.Issues.join(', ')}<br>
+            <strong>Location:</strong> ${alert.Location}<br>
+            <strong>Timestamp:</strong> ${alert.Timestamp}
+          `;
+          alertsList.appendChild(listItem);
+        });
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        soldierDataBody.innerHTML = '<tr><td colspan="5">Error loading soldier data. Please try again later.</td></tr>';
+        alertsList.innerHTML = '<li>Error loading alerts. Please try again later.</li>';
+      }
+    }
+
+    // Call the fetchData function on page load
+    document.addEventListener('DOMContentLoaded', fetchData);
+  </script>
+</body>
+</html> -->
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="styles1.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <header>
+      <h1>BenG Solutions</h1>
+      <h2>Soldier Tracking Dashboard</h2>
+    </header>
+
+    <nav class="button-nav">
+      <button onclick="location.href='addsoldier.html'">Add Soldier</button>
+      <button onclick="location.href='soldierhealthdata.html'">Soldier's Health Data</button>
+      <button onclick="location.href='location.html'">Location Tracking</button>
+      <button onclick="location.href='about.html'">About</button>
+    </nav>
+
+    <section class="main-content">
+       Soldier Data 
+      <div class="soldier-data">
+        <h2>Soldier Data</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>HeartRate</th>
+              <th>BodyTemperature</th>
+              <th>Location</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>001</td>
+              <td>Raj</td>
+              <td>85</td>
+              <td>36.5</td>
+              <td>34.083656, 74.797371</td>
+            </tr>
+            <tr>
+              <td>002</td>
+              <td>Kumar</td>
+              <td>91</td>
+              <td>37</td>
+              <td>34.209515, 74.343611</td>
+            </tr>
+            <tr>
+              <td>003</td>
+              <td>Rohit Sharma</td>
+              <td>76</td>
+              <td>37.4</td>
+              <td>33.733847, 75.148244</td>
+            </tr>
+            <tr>
+              <td>004</td>
+              <td>Jaiswal</td>
+              <td>76</td>
+              <td>36.9</td>
+              <td>34.536218, 74.377364</td>
+            </tr>
+            <tr>
+              <td>005</td>
+              <td>Kohli</td>
+              <td>83</td>
+              <td>36.8</td>
+              <td>34.557743,76.126999</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+       Alerts 
+      <div class="alerts">
+        <h2>Alerts</h2>
+        <ul id="alerts-list">
+           Alerts will be dynamically loaded here 
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Fetch alerts from AWS API
+    async function fetchAlerts() {
+      const apiUrl = ' https://7r84vcqw11.execute-api.us-east-1.amazonaws.com/s/abnormalHealtj'; // AWS API URL
+      const alertsList = document.getElementById('alerts-list');
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch alerts');
+        }
+
+        const data = await response.json(); // Parse the main response
+        const body = JSON.parse(data.body); // Parse the stringified 'body' field
+        const alerts = body.alerts || []; // Safely access the 'alerts' array
+        alertsList.innerHTML = ''; // Clear existing alerts
+
+        if (alerts.length === 0) {
+          alertsList.innerHTML = '<li>No alerts available.</li>';
+        }
+
+        alerts.forEach((alert) => {
+          const listItem = document.createElement('li');
+          listItem.innerHTML = `
+            <strong>Message:</strong> ${alert.Message}<br>
+             <strong>ID:</strong> ${alert.ID}<br>
+            <strong>Name:</strong> ${alert.Name}<br>
+            <strong>Issues:</strong> ${alert.Issues.join(', ')}<br>
+            <strong>Location:</strong> ${alert.Location}<br>
+            <strong>Timestamp:</strong> ${alert.Timestamp}
+          `;
+          alertsList.appendChild(listItem);
+        });
+      } catch (error) {
+        console.error('Error fetching alerts:', error);
+        alertsList.innerHTML = '<li>Error loading alerts. Please try again later.</li>';
+      }
+    }
+
+    // Call the fetchAlerts function on page load
+    document.addEventListener('DOMContentLoaded', fetchAlerts);
+  </script>
+</body>
+</html> -->
+
+
+
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="styles1.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <header>
+      <h1>BenG Solutions</h1>
+      <h2>Soldier Tracking Dashboard</h2>
+    </header>
+
+    <nav class="button-nav">
+      <button onclick="location.href='addsoldier.html'">Add Soldier</button>
+      <button onclick="location.href='soldierhealthdata.html'">Soldier's Health Data</button>
+      <button onclick="location.href='location.html'">Location Tracking</button>
+      <button onclick="location.href='about.html'">About</button>
+    </nav>
+
+    <section class="main-content">
+       Soldier Data 
+      <div class="soldier-data">
+        <h2>Soldier Data</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>HeartRate</th>
+              <th>BodyTemperature</th>
+              <th>Location</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>001</td>
+              <td>Raj</td>
+              <td>85</td>
+              <td>36.5</td>
+              <td>34.083656, 74.797371</td>
+            </tr>
+            <tr>
+              <td>002</td>
+              <td>Kumar</td>
+              <td>91</td>
+              <td>37</td>
+              <td>34.209515, 74.343611</td>
+            </tr>
+            <tr>
+              <td>003</td>
+              <td>Rohit Sharma</td>
+              <td>76</td>
+              <td>37.4</td>
+              <td>33.733847, 75.148244</td>
+            </tr>
+            <tr>
+              <td>004</td>
+              <td>Jaiswal</td>
+              <td>76</td>
+              <td>36.9</td>
+              <td>34.536218, 74.377364</td>
+            </tr>
+            <tr>
+              <td>005</td>
+              <td>Kohli</td>
+              <td>83</td>
+              <td>36.8</td>
+              <td>34.557743,76.126999</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+       Alerts 
+      <div class="alerts">
+        <h2>Alerts</h2>
+        <ul id="alerts-list">
+           Alerts will be dynamically loaded here
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Fetch alerts from AWS API
+    async function fetchAlerts() {
+      const apiUrl = 'https://7r84vcqw11.execute-api.us-east-1.amazonaws.com/dev/abnormalHealtj'; // AWS API URL
+      const alertsList = document.getElementById('alerts-list');
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch alerts');
+        }
+
+        const data = await response.json(); // Parse the main response
+        const body = JSON.parse(data.body); // Parse the stringified 'body' field
+        const alerts = body.alerts || []; // Safely access the 'alerts' array
+        alertsList.innerHTML = ''; // Clear existing alerts
+
+        if (alerts.length === 0) {
+          alertsList.innerHTML = '<li>No alerts available.</li>';
+        }
+
+        alerts.forEach((alert) => {
+          const listItem = document.createElement('li');
+          listItem.innerHTML = `
+            <strong>Message:</strong> ${alert.message}<br>
+            <strong>Heart Rate:</strong> ${alert["HeartRate"]} bpm<br>
+            <strong>Location:</strong> ${alert["Location"]}
+          `;
+          alertsList.appendChild(listItem);
+        });
+      } catch (error) {
+        console.error('Error fetching alerts:', error);
+        alertsList.innerHTML = '<li>Error loading alerts. Please try again later.</li>';
+      }
+    }
+
+    // Call the fetchAlerts function on page load
+    document.addEventListener('DOMContentLoaded', fetchAlerts);
+  </script>
+</body>
+</html>
+ -->
+
+
+
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="styles1.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <header>
+      <h1>BenG Solutions</h1>
+      <h2>Soldier Tracking Dashboard</h2>
+    </header>
+
+    <nav class="button-nav">
+      <button onclick="location.href='addsoldier.html'">Add Soldier</button>
+      <button onclick="location.href='soldierhealthdata.html'">Soldier's Health Data</button>
+      <button onclick="location.href='location.html'">Location Tracking</button>
+      <button onclick="location.href='about.html'">About</button>
+    </nav>
+
+    <section class="main-content">
+       Soldier Data 
+      <div class="soldier-data">
+        <h2>Soldier Data</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>HeartRate</th>
+              <th>BodyTemperature</th>
+              <th>Location</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>001</td>
+              <td>Raj</td>
+              <td>85</td>
+              <td>36.5</td>
+              <td>34.083656, 74.797371</td>
+            </tr>
+            <tr>
+              <td>002</td>
+              <td>Kumar</td>
+              <td>91</td>
+              <td>37</td>
+              <td>34.209515, 74.343611</td>
+            </tr>
+            <tr>
+              <td>003</td>
+              <td>Rohit Sharma</td>
+              <td>76</td>
+              <td>37.4</td>
+              <td>33.733847, 75.148244</td>
+            </tr>
+            <tr>
+              <td>004</td>
+              <td>Jaiswal</td>
+              <td>76</td>
+              <td>36.9</td>
+              <td>34.536218, 74.377364</td>
+            </tr>
+            <tr>
+              <td>005</td>
+              <td>Kohli</td>
+              <td>83</td>
+              <td>36.8</td>
+              <td>34.557743,76.126999</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+       Alerts 
+      <div class="alerts">
+        <h2>Alerts</h2>
+        <ul id="alerts-list">
+           Alerts will be dynamically loaded here 
+        </ul>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // Fetch alerts from AWS API
+    async function fetchAlerts() {
+      const apiUrl = 'https://d890lzgq6c.execute-api.ap-south-1.amazonaws.com/deploy/b'; // AWS API URL
+      const alertsList = document.getElementById('alerts-list');
+
+      try {
+        const response = await fetch(apiUrl, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+
+        console.log(response);
+        if (!response.ok) {
+          throw new Error('Failed to fetch alerts');
+        }
+
+        const alerts = await response.json();
+        alertsList.innerHTML = ''; // Clear existing alerts
+
+        alerts.forEach((alert) => {
+          const listItem = document.createElement('li');
+          listItem.innerHTML = `<strong>${alert.name}:</strong> ${alert.message} at ${alert.time}`;
+          alertsList.appendChild(listItem);
+        });
+      } catch (error) {
+        console.error('Error fetching alerts:', error);
+        alertsList.innerHTML = '<li>Error loading alerts. Please try again later.</li>';
+      }
+    }
+
+    // Call the fetchAlerts function on page load
+    document.addEventListener('DOMContentLoaded', fetchAlerts);
+  </script>
+</body>
+</html> -->
+
+
+
+
+
+<!-- previous code
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard</title>
+  <link rel="stylesheet" href="styles1.css">
+</head>
+<body>
+  <div class="dashboard-container">
+    <header>
+      <h1>BenG Solutions</h1>
+      <h2>Soldier Tracking Dashboard</h2>
+    </header>
+
+    <nav class="button-nav">
+      <button onclick="location.href='addsoldier.html'">Add Soldier</button>
+      <button onclick="location.href='soldierhealthdata.html'">Soldier's Health Data</button>
+      <button onclick="location.href='location.html'">Location Tracking</button>
+      <button onclick="location.href='about.html'">About</button>
+    </nav>
+
+    <section class="main-content">
+       Soldier Data
+      <div class="soldier-data">
+        <h2>Soldier Data</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>HeartRate</th>
+              <th>BodyTemperature</th>
+              <th>Location</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>001</td>
+              <td>Raj</td>
+              <td>85</td>
+              <td>36.5</td>
+              <td>34.083656, 74.797371</td>
+            </tr>
+            <tr>
+              <td>002</td>
+              <td>Kumar</td>
+              <td>91</td>
+              <td>37</td>
+              <td>34.209515, 74.343611</td>
+            </tr>
+            <tr>
+              <td>003</td>
+              <td>Rohit Sharma</td>
+              <td>76</td>
+              <td>37.4</td>
+              <td>33.733847, 75.148244</td>
+            </tr>
+            <tr>
+              <td>004</td>
+              <td>Jaiswal</td>
+              <td>76</td>
+              <td>36.9</td>
+              <td>34.536218, 74.377364</td>
+            </tr>
+            <tr>
+              <td>005</td>
+              <td>Kohli</td>
+              <td>83</td>
+              <td>36.8</td>
+              <td>34.557743,76.126999
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+       Alerts
+      <div class="alerts">
+        <h2>Alerts</h2>
+        <ul>
+          <li><strong>Raj:</strong> SOS alert at 3:00 PM</li>
+          <li><strong>Rohit Sharma:</strong> SOS alert at 2:45 PM</li>
+        </ul>
+      </div>
+    </section>
+  </div>
+</body>
+</html> -->
